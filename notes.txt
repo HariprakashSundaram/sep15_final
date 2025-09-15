@@ -52,3 +52,58 @@ async function loadRespTime() {
   $('#rangeDisplayRespTime').text($('#rangeDisplayAgg').text());
 }
 // ...existing code...
+
+
+
+
+async function loadRespTime() {
+  const { start, end, tz } = getRangeParams();
+  const testId = $('#testIdSelect').val();
+  const params = new URLSearchParams();
+  if (testId) params.append('test_id', testId);
+  if (start) params.append('start', start);
+  if (end) params.append('end', end);
+
+  const resp = await fetch('/api/response_times?' + params.toString());
+  const data = await resp.json();
+
+  // Find the union of all timestamps
+  let allTimestamps = [];
+  for (const labelData of Object.values(data)) {
+    if (labelData.timestamps) {
+      allTimestamps = allTimestamps.concat(labelData.timestamps);
+    }
+  }
+  allTimestamps = Array.from(new Set(allTimestamps)).sort((a, b) => a - b);
+
+  const labels = allTimestamps.map(s => moment.unix(s).tz(tz).format('HH:mm:ss A'));
+  respTimeChart.data.labels = labels;
+  respTimeChart.data.datasets = [];
+
+  const colors = ['#e74c3c','#3498db','#2ecc71','#f39c12','#9b59b6','#1abc9c','#34495e','#95a5a6'];
+  let colorIdx = 0;
+
+  for (const [label, values] of Object.entries(data)) {
+    const timeMap = {};
+    if (values.timestamps && values.response_times) {
+      values.timestamps.forEach((t, i) => { timeMap[t] = values.response_times[i]; });
+    }
+    const alignedRespTimes = allTimestamps.map(t => timeMap[t] !== undefined ? timeMap[t] : 0);
+
+    respTimeChart.data.datasets.push({
+      label: label,
+      data: alignedRespTimes,
+      borderColor: colors[colorIdx % colors.length],
+      backgroundColor: colors[colorIdx % colors.length] + '22',
+      borderWidth: 2,
+      tension: 0.4,
+      pointRadius: 0,
+      spanGaps: false
+    });
+    colorIdx++;
+  }
+
+  respTimeChart.update();
+  $('#rangeDisplayRespTime').text($('#rangeDisplayAgg').text());
+}
+// ...existing code...
