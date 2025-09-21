@@ -45,41 +45,46 @@ if (!prev.isSuccessful()) {
     }
 }
 
-// Build JSON safely
-def sb = new StringBuilder()
-sb.append("{")
-sb.append("\"label\":\"${label}\",")
-sb.append("\"thread_count\":${threadCount},")
-sb.append("\"success\":${success},")
-sb.append("\"tps\":${tps},")
-sb.append("\"response_time\":${responseTime},")
-sb.append("\"errorPct\":${errorPct},")
-sb.append("\"timestamp\":${timeStamp},")
-sb.append("\"status_code\":\"${status_code}\",")
-sb.append("\"received_bytes\":${received_bytes},")
-sb.append("\"sent_bytes\":${sent_bytes},")
-sb.append("\"test_id\":\"${test_id}\"")
+// ✅ Skip sending if label is null or empty
+if (label != null && !label.trim().isEmpty()) {
+    // Build JSON safely
+    def sb = new StringBuilder()
+    sb.append("{")
+    sb.append("\"label\":\"${label}\",")
+    sb.append("\"thread_count\":${threadCount},")
+    sb.append("\"success\":${success},")
+    sb.append("\"tps\":${tps},")
+    sb.append("\"response_time\":${responseTime},")
+    sb.append("\"errorPct\":${errorPct},")
+    sb.append("\"timestamp\":${timeStamp},")
+    sb.append("\"status_code\":\"${status_code}\",")
+    sb.append("\"received_bytes\":${received_bytes},")
+    sb.append("\"sent_bytes\":${sent_bytes},")
+    sb.append("\"test_id\":\"${test_id}\"")
 
-if (includeErrorMessage) {
-    sb.append(",\"error_message\":\"${error_message.replaceAll('"', '\\"')}\"")
-}
+    if (includeErrorMessage) {
+        sb.append(",\"error_message\":\"${error_message.replaceAll('"', '\\"')}\"")
+    }
 
-sb.append("}")
-def json = sb.toString()
+    sb.append("}")
+    def json = sb.toString()
 
-try {
-    def url = new URL("http://localhost:5000/metrics")
-    def conn = url.openConnection() as HttpURLConnection
-    conn.setDoOutput(true)
-    conn.setRequestMethod("POST")
-    conn.setRequestProperty("Content-Type", "application/json")
+    try {
+        def url = new URL("http://localhost:5000/metrics")
+        def conn = url.openConnection() as HttpURLConnection
+        conn.setDoOutput(true)
+        conn.setRequestMethod("POST")
+        conn.setRequestProperty("Content-Type", "application/json")
 
-    conn.outputStream.withWriter("UTF-8") { it.write(json) }
+        conn.outputStream.withWriter("UTF-8") { it.write(json) }
 
-    log.info("Posted metrics: " + json)
-    log.info("Response code: " + conn.responseCode)
+        log.info("Posted metrics: " + json)
+        log.info("Response code: " + conn.responseCode)
 
-    conn.disconnect()
-} catch (Exception e) {
-    log.error("Error sending metrics", e)
+        conn.disconnect()
+    } catch (Exception e) {
+        log.error("Error sending metrics", e)
+    }
+} else {
+    log.info("Skipping metrics because label is null or empty")
 }
